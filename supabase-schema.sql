@@ -5,8 +5,11 @@ create table if not exists public.games (
   room_code text not null unique,
   status text not null default 'lobby' check (status in ('lobby', 'guessing', 'results', 'finished')),
   round_index integer not null default 0,
+  started_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table public.games add column if not exists started_at timestamptz;
 
 create table if not exists public.players (
   id uuid primary key default gen_random_uuid(),

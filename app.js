@@ -43,9 +43,9 @@ function initMap() {
   });
 }
 
-function startTimer() {
+function startTimer(startedAt) {
   clearInterval(timerId);
-  seconds = 60;
+  seconds = Math.max(0, 60 - Math.floor((Date.now() - new Date(startedAt || Date.now()).getTime()) / 1000));
   $('timer').textContent = '01:00';
   timerId = setInterval(() => {
     seconds -= 1;
@@ -68,7 +68,7 @@ function showWaitingRoom() {
   $('timer').textContent = '—';
 }
 
-function showGuessRound(index) {
+function showGuessRound(index, startedAt) {
   roundIndex = index;
   $('joinScreen').classList.add('hidden');
   $('gameScreen').classList.remove('hidden');
@@ -88,7 +88,7 @@ function showGuessRound(index) {
     initMap();
     setTimeout(() => guessMap.invalidateSize(), 0);
   }
-  startTimer();
+  startTimer(startedAt);
 }
 
 function showResults(guesses = []) {

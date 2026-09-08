@@ -26,7 +26,7 @@ function subscribeToRoom() {
   realtimeChannel = realtimeClient.channel(`game-${realtimeGame.id}`)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${realtimeGame.id}` }, async payload => {
       realtimeGame = payload.new;
-      if (realtimeGame.status === 'guessing') window.showGuessRound(realtimeGame.round_index);
+      if (realtimeGame.status === 'guessing') window.showGuessRound(realtimeGame.round_index, realtimeGame.started_at);
       if (realtimeGame.status === 'results') window.showResults(await loadRoundGuesses(realtimeGame.round_index));
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'guesses', filter: `game_id=eq.${realtimeGame.id}` }, () => {
@@ -43,7 +43,7 @@ async function joinRealtimeRoom() {
     realtimePlayer = player.data;
     document.getElementById('roomLabel').textContent = `Warteraum · ${roomCode}`;
     subscribeToRoom();
-    if (realtimeGame.status === 'guessing') window.showGuessRound(realtimeGame.round_index); else window.showWaitingRoom();
+    if (realtimeGame.status === 'guessing') window.showGuessRound(realtimeGame.round_index, realtimeGame.started_at); else window.showWaitingRoom();
   } catch (error) {
     document.getElementById('roomLabel').textContent = 'Verbindungsfehler';
     console.warn('Raum konnte nicht betreten werden.', error.message);
@@ -53,7 +53,7 @@ async function joinRealtimeRoom() {
 async function hostStartGame() {
   realtimeGame = await getOrCreateGame();
   subscribeToRoom();
-  await realtimeClient.from('games').update({ status: 'guessing', round_index: 0 }).eq('id', realtimeGame.id);
+  await realtimeClient.from('games').update({ status: 'guessing', round_index: 0, started_at: new Date().toISOString() }).eq('id', realtimeGame.id);
 }
 
 async function hostEndRound() {
@@ -62,7 +62,7 @@ async function hostEndRound() {
 
 async function hostNextRound() {
   if (!realtimeGame || realtimeGame.round_index >= rounds.length - 1) return;
-  await realtimeClient.from('games').update({ status: 'guessing', round_index: realtimeGame.round_index + 1 }).eq('id', realtimeGame.id);
+  await realtimeClient.from('games').update({ status: 'guessing', round_index: realtimeGame.round_index + 1, started_at: new Date().toISOString() }).eq('id', realtimeGame.id);
 }
 
 async function saveRealtimeGuess() {
