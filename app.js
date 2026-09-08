@@ -7,6 +7,7 @@ const rounds = [
   { solution: { month: 9, year: 2024, lat: 54.53244, lng: 11.07387, place: '54.53244° N, 11.07387° O' }, photo: `${photoBase}IMG_3574.JPG` }
 ];
 const months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const ROUND_SECONDS = 120;
 const isHost = new URLSearchParams(window.location.search).has('host');
 let roundIndex = 0;
 let guessMap;
@@ -45,11 +46,11 @@ function initMap() {
 
 function startTimer(startedAt) {
   clearInterval(timerId);
-  seconds = Math.max(0, 60 - Math.floor((Date.now() - new Date(startedAt || Date.now()).getTime()) / 1000));
-  $('timer').textContent = '01:00';
+  seconds = Math.max(0, ROUND_SECONDS - Math.floor((Date.now() - new Date(startedAt || Date.now()).getTime()) / 1000));
+  $('timer').textContent = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   timerId = setInterval(() => {
     seconds -= 1;
-    $('timer').textContent = `00:${String(seconds).padStart(2, '0')}`;
+    $('timer').textContent = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
     if (seconds <= 0) {
       clearInterval(timerId);
       $('submitGuess').disabled = true;

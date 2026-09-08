@@ -31,6 +31,7 @@ function subscribeToRoom() {
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'guesses', filter: `game_id=eq.${realtimeGame.id}` }, () => {
       if (!realtimeIsHost) document.getElementById('mapHint').textContent = 'Tipp gespeichert. Warte auf die Auflösung.';
+      if (realtimeIsHost) hostMaybeEndRound();
     })
     .subscribe();
 }
@@ -58,6 +59,13 @@ async function hostStartGame() {
 
 async function hostEndRound() {
   if (realtimeGame) await realtimeClient.from('games').update({ status: 'results' }).eq('id', realtimeGame.id);
+}
+
+async function hostMaybeEndRound() {
+  if (!realtimeGame || realtimeGame.status !== 'guessing') return;
+  const players = await realtimeClient.from('players').select('id', { count: 'exact', head: true }).eq('game_id', realtimeGame.id);
+  const guesses = await realtimeClient.from('guesses').select('id', { count: 'exact', head: true }).eq('game_id', realtimeGame.id).eq('round_index', realtimeGame.round_index);
+  if (!players.error && !guesses.error && players.count > 0 && guesses.count >= players.count) await hostEndRound();
 }
 
 async function hostNextRound() {
