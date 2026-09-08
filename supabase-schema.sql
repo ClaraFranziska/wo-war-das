@@ -37,6 +37,14 @@ alter table public.games enable row level security;
 alter table public.players enable row level security;
 alter table public.guesses enable row level security;
 
+drop policy if exists "public games read" on public.games;
+drop policy if exists "public games insert" on public.games;
+drop policy if exists "public games update" on public.games;
+drop policy if exists "public players read" on public.players;
+drop policy if exists "public players insert" on public.players;
+drop policy if exists "public guesses read" on public.guesses;
+drop policy if exists "public guesses insert" on public.guesses;
+
 create policy "public games read" on public.games for select to anon using (true);
 create policy "public games insert" on public.games for insert to anon with check (true);
 create policy "public games update" on public.games for update to anon using (true) with check (true);
@@ -45,6 +53,15 @@ create policy "public players insert" on public.players for insert to anon with 
 create policy "public guesses read" on public.guesses for select to anon using (true);
 create policy "public guesses insert" on public.guesses for insert to anon with check (true);
 
-alter publication supabase_realtime add table public.games;
-alter publication supabase_realtime add table public.players;
-alter publication supabase_realtime add table public.guesses;
+do $$
+begin
+  if not exists (select 1 from pg_publication_rel where prpubid = (select oid from pg_publication where pubname = 'supabase_realtime') and prrelid = 'public.games'::regclass) then
+    alter publication supabase_realtime add table public.games;
+  end if;
+  if not exists (select 1 from pg_publication_rel where prpubid = (select oid from pg_publication where pubname = 'supabase_realtime') and prrelid = 'public.players'::regclass) then
+    alter publication supabase_realtime add table public.players;
+  end if;
+  if not exists (select 1 from pg_publication_rel where prpubid = (select oid from pg_publication where pubname = 'supabase_realtime') and prrelid = 'public.guesses'::regclass) then
+    alter publication supabase_realtime add table public.guesses;
+  end if;
+end $$;
