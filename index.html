@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wo war das?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">W</span><span>Wo war das?</span></div>
+      <div class="room-status"><span class="status-dot"></span><span id="roomLabel">Demo-Raum</span></div>
+    </header>
+
+    <section id="joinScreen" class="screen join-screen">
+      <div class="intro-copy">
+        <p class="eyebrow">Gemeinsames Fotoquiz</p>
+        <h1>Reise durch eure<br><em>gemeinsamen Momente.</em></h1>
+        <p class="lede">Schätzt den Zeitpunkt und findet den Ort. Jeder Tipp zählt für euer Team.</p>
+      </div>
+      <form id="joinForm" class="join-panel">
+        <label for="playerName">Dein Name</label>
+        <input id="playerName" required maxlength="24" placeholder="z. B. Anna">
+        <label>Wähle dein Team</label>
+        <div class="team-options">
+          <label class="team-card team-bride"><input type="radio" name="team" value="braut" checked><span class="team-icon">B</span><span><strong>Team Braut</strong><small>Gemeinsam auf Zeitreise</small></span></label>
+          <label class="team-card team-groom"><input type="radio" name="team" value="braeutigam"><span class="team-icon">B</span><span><strong>Team Bräutigam</strong><small>Gemeinsam auf Zeitreise</small></span></label>
+        </div>
+        <button class="primary-button" type="submit">Dem Spiel beitreten <span>→</span></button>
+        <p class="small-note">Der Host startet die erste Runde über den Beamer.</p>
+      </form>
+    </section>
+
+    <section id="gameScreen" class="screen hidden">
+      <div class="game-header">
+        <div><p class="eyebrow" id="phaseLabel">Runde 1 von 5</p><h2 id="gameTitle">Wo und wann ist dieses Foto entstanden?</h2></div>
+        <div class="timer" id="timer">01:00</div>
+      </div>
+      <div id="guessView" class="guess-layout">
+        <div class="photo-stage"><img id="roundPhoto" src="https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1400&q=85" alt="Foto der aktuellen Runde"><div class="photo-badge">Runde <span id="roundNumber">1</span></div></div>
+        <div class="guess-controls">
+          <div class="control-block"><div class="control-heading"><span class="step">01</span><div><strong>Wann?</strong><small>Monat und Jahr auswählen</small></div></div><div class="date-fields"><select id="guessMonth" aria-label="Monat"></select><select id="guessYear" aria-label="Jahr"></select></div></div>
+          <div class="control-block"><div class="control-heading"><span class="step">02</span><div><strong>Wo?</strong><small>Auf der Karte markieren</small></div></div><div id="map"></div><p id="mapHint" class="map-hint">Tippe auf die Karte, um deinen Ort zu setzen.</p></div>
+          <button id="submitGuess" class="primary-button" disabled>Tipp abgeben <span>→</span></button>
+        </div>
+      </div>
+      <div id="resultsView" class="hidden results-view">
+        <div class="result-banner"><span class="result-kicker">Auflösung</span><h2 id="solutionTitle">September 2023 · Regensburg</h2><p id="resultMessage">Stark geschätzt! Hier seht ihr alle Tipps.</p></div>
+        <div class="result-grid"><div id="resultMap" class="result-map"></div><div class="timeline-panel"><div class="panel-title"><span>Alle Zeit-Tipps</span><span class="legend-dot"></span></div><div id="timeline" class="timeline"></div><div class="score-table"><div class="score-row score-head"><span>Spieler</span><span>Team</span><span>Punkte</span></div><div id="scoreRows"></div></div></div></div>
+        <div class="leaderboard"><div><span class="result-kicker">Zwischenstand</span><h3>Welches Team liegt vorn?</h3></div><div class="team-score"><span class="score-label">Team Braut</span><strong id="brideScore">1.240</strong></div><div class="team-score accent"><span class="score-label">Team Bräutigam</span><strong id="groomScore">980</strong></div></div>
+        <button id="nextRound" class="primary-button next-button">Nächste Runde <span>→</span></button>
+      </div>
+    </section>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
