@@ -22,12 +22,20 @@ async function loadRoundGuesses(round) {
   return guesses.data.map(guess => ({ ...guess, ...playerById[guess.player_id] })).filter(guess => guess.name);
 }
 
+async function loadAllGuesses() {
+  const guesses = await realtimeClient.from('guesses').select('*').eq('game_id', realtimeGame.id);
+  const players = await realtimeClient.from('players').select('id,name,team').eq('game_id', realtimeGame.id);
+  if (guesses.error || players.error) return [];
+  const playerById = Object.fromEntries(players.data.map(player => [player.id, player]));
+  return guesses.data.map(guess => ({ ...guess, ...playerById[guess.player_id] })).filter(guess => guess.name);
+}
+
 function subscribeToRoom() {
   realtimeChannel = realtimeClient.channel(`game-${realtimeGame.id}`)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${realtimeGame.id}` }, async payload => {
       realtimeGame = payload.new;
       if (realtimeGame.status === 'guessing') window.showGuessRound(realtimeGame.round_index, realtimeGame.started_at);
-      if (realtimeGame.status === 'results') window.showResults(await loadRoundGuesses(realtimeGame.round_index));
+      if (realtimeGame.status === 'results') window.showResults(await loadRoundGuesses(realtimeGame.round_index), await loadAllGuesses());
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'guesses', filter: `game_id=eq.${realtimeGame.id}` }, () => {
       if (!realtimeIsHost) document.getElementById('mapHint').textContent = 'Tipp gespeichert. Warte auf die Auflösung.';
@@ -73,6 +81,14 @@ async function hostNextRound() {
   await realtimeClient.from('games').update({ status: 'guessing', round_index: realtimeGame.round_index + 1, started_at: new Date().toISOString() }).eq('id', realtimeGame.id);
 }
 
+async function hostResetGame() {
+  if (!realtimeGame || !window.confirm('Neues Spiel starten und alle bisherigen Tipps löschen?')) return;
+  await realtimeClient.from('guesses').delete().eq('game_id', realtimeGame.id);
+  await realtimeClient.from('players').delete().eq('game_id', realtimeGame.id);
+  await realtimeClient.from('games').update({ status: 'lobby', round_index: 0, started_at: null }).eq('id', realtimeGame.id);
+  window.location.reload();
+}
+
 async function saveRealtimeGuess() {
   if (!realtimeGame || !realtimePlayer || !chosenPoint) return;
   const solution = rounds[roundIndex].solution;
@@ -88,4 +104,5 @@ window.joinRealtimeRoom = joinRealtimeRoom;
 window.hostStartGame = hostStartGame;
 window.hostEndRound = hostEndRound;
 window.hostNextRound = hostNextRound;
+window.hostResetGame = hostResetGame;
 window.saveRealtimeGuess = saveRealtimeGuess;

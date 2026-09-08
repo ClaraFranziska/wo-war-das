@@ -44,6 +44,9 @@ drop policy if exists "public players read" on public.players;
 drop policy if exists "public players insert" on public.players;
 drop policy if exists "public guesses read" on public.guesses;
 drop policy if exists "public guesses insert" on public.guesses;
+drop policy if exists "public games delete" on public.games;
+drop policy if exists "public players delete" on public.players;
+drop policy if exists "public guesses delete" on public.guesses;
 
 create policy "public games read" on public.games for select to anon using (true);
 create policy "public games insert" on public.games for insert to anon with check (true);
@@ -52,6 +55,9 @@ create policy "public players read" on public.players for select to anon using (
 create policy "public players insert" on public.players for insert to anon with check (true);
 create policy "public guesses read" on public.guesses for select to anon using (true);
 create policy "public guesses insert" on public.guesses for insert to anon with check (true);
+create policy "public games delete" on public.games for delete to anon using (true);
+create policy "public players delete" on public.players for delete to anon using (true);
+create policy "public guesses delete" on public.guesses for delete to anon using (true);
 
 do $$
 begin

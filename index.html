@@ -12,7 +12,7 @@
   <style>
     .host-panel{display:grid;grid-template-columns:220px 1fr;gap:55px;align-items:center;background:var(--card);padding:42px;border:1px solid var(--line);box-shadow:var(--shadow)}
     .host-panel h2{font:700 clamp(34px,5vw,62px)/1 'Playfair Display',serif;letter-spacing:-.04em;margin:0 0 18px}.host-panel h2 em{color:var(--green);font-style:normal}.host-panel .lede{margin-bottom:25px}.host-qr{width:220px;height:220px;padding:12px;background:#fff;border:1px solid var(--line)}.host-qr img{display:block;width:100%;height:100%}
-    .host-mode .game-header,.host-mode .guess-controls{display:none}.host-mode .guess-layout{display:block}.host-mode .photo-stage{height:calc(100vh - 76px);min-height:0;border-radius:0}.host-mode .photo-stage img{height:100%;min-height:0;object-fit:contain;background:#172523}.host-mode .photo-badge{display:none}
+    .host-mode .game-header,.host-mode .guess-controls{display:none}.host-mode .guess-layout{display:block}.host-mode .photo-stage{height:calc(100vh - 76px);min-height:0;border-radius:0}.host-mode .photo-stage img{height:100%;min-height:0;object-fit:contain;background:#172523}.host-mode .photo-badge{display:none}.secondary-button{border:1px solid var(--line);background:transparent;color:var(--ink);padding:7px 10px;margin-left:10px;font:700 11px 'DM Sans',sans-serif;cursor:pointer}.secondary-button:hover{border-color:var(--coral);color:var(--coral)}
     @media(max-width:760px){.host-panel{grid-template-columns:1fr;gap:25px;padding:25px}.host-qr{margin:auto}}
   </style>
 </head>
@@ -20,7 +20,7 @@
   <main class="shell">
     <header class="topbar">
       <div class="brand"><span class="brand-mark">W</span><span>Wo war das?</span></div>
-      <div class="room-status"><span class="status-dot"></span><span id="roomLabel">Demo-Raum</span></div>
+      <div class="room-status"><span class="status-dot"></span><span id="roomLabel">Demo-Raum</span><button id="newGame" class="secondary-button hidden" type="button">Neues Spiel <span>↻</span></button></div>
     </header>
 
     <section id="joinScreen" class="screen join-screen">
@@ -67,7 +67,7 @@
       <div id="resultsView" class="hidden results-view">
         <div class="result-banner"><span class="result-kicker">Auflösung</span><h2 id="solutionTitle">September 2023 · Regensburg</h2><p id="resultMessage">Stark geschätzt! Hier seht ihr alle Tipps.</p></div>
         <div class="result-grid"><div id="resultMap" class="result-map"></div><div class="timeline-panel"><div class="panel-title"><span>Alle Zeit-Tipps</span><span class="legend-dot"></span></div><div id="timeline" class="timeline"></div><div class="score-table"><div class="score-row score-head"><span>Spieler</span><span>Team</span><span>Punkte</span></div><div id="scoreRows"></div></div></div></div>
-        <div class="leaderboard"><div><span class="result-kicker">Zwischenstand</span><h3>Welches Team liegt vorn?</h3></div><div class="team-score"><span class="score-label">Team Braut</span><strong id="brideScore">1.240</strong></div><div class="team-score accent"><span class="score-label">Team Bräutigam</span><strong id="groomScore">980</strong></div></div>
+        <div class="leaderboard"><div><span class="result-kicker">Gesamtstand</span><h3 id="leaderboardTitle">Welches Team liegt vorn?</h3></div><div class="team-score"><span class="score-label">Team Braut</span><strong id="brideScore">0</strong></div><div class="team-score accent"><span class="score-label">Team Bräutigam</span><strong id="groomScore">0</strong></div></div>
         <button id="nextRound" class="primary-button next-button">Nächste Runde <span>→</span></button>
       </div>
     </section>

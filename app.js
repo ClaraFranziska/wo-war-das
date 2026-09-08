@@ -92,16 +92,16 @@ function showGuessRound(index, startedAt) {
   startTimer(startedAt);
 }
 
-function showResults(guesses = []) {
+function showResults(guesses = [], allGuesses = guesses) {
   clearInterval(timerId);
   $('guessView').classList.add('hidden');
   $('resultsView').classList.remove('hidden');
   $('gameTitle').textContent = 'Die Tipps sind da';
   $('timer').textContent = 'AUFLÖSUNG';
-  renderResults(guesses);
+  renderResults(guesses, allGuesses);
 }
 
-function renderResults(guesses) {
+function renderResults(guesses, allGuesses) {
   const solution = rounds[roundIndex].solution;
   $('solutionTitle').textContent = `${months[solution.month - 1]} ${solution.year} · ${solution.place}`;
   if (resultMap) resultMap.remove();
@@ -111,10 +111,11 @@ function renderResults(guesses) {
   guesses.forEach(guess => L.circleMarker([guess.latitude, guess.longitude], { radius: 7, color: guess.team === 'braut' ? '#47715c' : '#de725f', fillOpacity: .8 }).addTo(resultMap));
   $('timeline').innerHTML = guesses.map(guess => `<div class="timeline-point ${guess.month === solution.month && guess.year === solution.year ? 'correct' : ''}"><small>${guess.month}/${guess.year}</small><i></i><small>${guess.name}</small></div>`).join('');
   $('scoreRows').innerHTML = guesses.map(guess => `<div class="score-row"><span>${guess.name}</span><span>${guess.team === 'braut' ? 'Braut' : 'Bräutigam'}</span><strong>${guess.points}</strong></div>`).join('') || '<p class="map-hint">Noch keine Tipps abgegeben.</p>';
-  const bride = guesses.filter(guess => guess.team === 'braut');
-  const groom = guesses.filter(guess => guess.team === 'braeutigam');
+  const bride = allGuesses.filter(guess => guess.team === 'braut');
+  const groom = allGuesses.filter(guess => guess.team === 'braeutigam');
   $('brideScore').textContent = Math.round(bride.reduce((sum, guess) => sum + guess.points, 0) / (bride.length || 1)).toLocaleString('de-DE');
   $('groomScore').textContent = Math.round(groom.reduce((sum, guess) => sum + guess.points, 0) / (groom.length || 1)).toLocaleString('de-DE');
+  $('leaderboardTitle').textContent = bride.reduce((sum, guess) => sum + guess.points, 0) / (bride.length || 1) === groom.reduce((sum, guess) => sum + guess.points, 0) / (groom.length || 1) ? 'Gleichstand' : (Number($('brideScore').textContent.replace('.', '')) > Number($('groomScore').textContent.replace('.', '')) ? 'Team Braut liegt vorn' : 'Team Bräutigam liegt vorn');
 }
 
 window.showResults = showResults;
@@ -126,6 +127,8 @@ if (isHost) {
   $('hostPanel').classList.remove('hidden');
   new QRCode($('hostQr'), { text: `${window.location.origin}${window.location.pathname}?room=HOCHZEIT`, width: 196, height: 196, colorDark: '#172523', colorLight: '#ffffff' });
   $('startGame').addEventListener('click', () => window.hostStartGame && window.hostStartGame());
+  $('newGame').classList.remove('hidden');
+  $('newGame').addEventListener('click', () => window.hostResetGame && window.hostResetGame());
 } else {
   $('joinForm').addEventListener('submit', event => { event.preventDefault(); window.joinRealtimeRoom && window.joinRealtimeRoom(); });
 }
