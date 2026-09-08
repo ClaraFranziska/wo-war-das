@@ -9,42 +9,60 @@ async function getOrCreateGame() {
   const existing = await realtimeClient.from('games').select('*').eq('room_code', roomCode).maybeSingle();
   if (existing.error) throw existing.error;
   if (existing.data) return existing.data;
-  const created = await realtimeClient.from('games').insert({room_code: roomCode}).select().single();
+  const created = await realtimeClient.from('games').insert({ room_code: roomCode }).select().single();
   if (created.error) throw created.error;
   return created.data;
+}
+
+async function loadRoundGuesses(round) {
+  const guesses = await realtimeClient.from('guesses').select('*').eq('game_id', realtimeGame.id).eq('round_index', round);
+  const players = await realtimeClient.from('players').select('id,name,team').eq('game_id', realtimeGame.id);
+  if (guesses.error || players.error) return [];
+  const playerById = Object.fromEntries(players.data.map(player => [player.id, player]));
+  return guesses.data.map(guess => ({ ...guess, ...playerById[guess.player_id] })).filter(guess => guess.name);
+}
+
+function subscribeToRoom() {
+  realtimeChannel = realtimeClient.channel(`game-${realtimeGame.id}`)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${realtimeGame.id}` }, async payload => {
+      realtimeGame = payload.new;
+      if (realtimeGame.status === 'guessing') window.showGuessRound(realtimeGame.round_index);
+      if (realtimeGame.status === 'results') window.showResults(await loadRoundGuesses(realtimeGame.round_index));
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'guesses', filter: `game_id=eq.${realtimeGame.id}` }, () => {
+      if (!realtimeIsHost) document.getElementById('mapHint').textContent = 'Tipp gespeichert. Warte auf die Auflösung.';
+    })
+    .subscribe();
 }
 
 async function joinRealtimeRoom() {
   try {
     realtimeGame = await getOrCreateGame();
-    const player = await realtimeClient.from('players').insert({
-      game_id: realtimeGame.id,
-      name: document.getElementById('playerName').value.trim(),
-      team: document.querySelector('input[name="team"]:checked').value
-    }).select().single();
+    const player = await realtimeClient.from('players').insert({ game_id: realtimeGame.id, name: document.getElementById('playerName').value.trim(), team: document.querySelector('input[name="team"]:checked').value }).select().single();
     if (player.error) throw player.error;
     realtimePlayer = player.data;
-    document.getElementById('roomLabel').textContent = `Raum ${roomCode}`;
+    document.getElementById('roomLabel').textContent = `Warteraum · ${roomCode}`;
     subscribeToRoom();
+    if (realtimeGame.status === 'guessing') window.showGuessRound(realtimeGame.round_index); else window.showWaitingRoom();
   } catch (error) {
-    console.warn('Supabase ist noch nicht eingerichtet. Demo bleibt aktiv.', error.message);
+    document.getElementById('roomLabel').textContent = 'Verbindungsfehler';
+    console.warn('Raum konnte nicht betreten werden.', error.message);
   }
 }
 
-function subscribeToRoom() {
-  realtimeChannel = realtimeClient.channel(`game-${realtimeGame.id}`)
-    .on('postgres_changes', {event:'*', schema:'public', table:'games', filter:`id=eq.${realtimeGame.id}`}, payload => {
-      realtimeGame = payload.new;
-      if (realtimeGame.status === 'results' && !document.getElementById('resultsView').classList.contains('hidden')) return;
-      if (realtimeGame.status === 'results') {
-        document.getElementById('submitGuess').disabled = true;
-        if (!realtimeIsHost && typeof window.showResults === 'function') window.showResults();
-      }
-    })
-    .on('postgres_changes', {event:'INSERT', schema:'public', table:'guesses', filter:`game_id=eq.${realtimeGame.id}`}, () => {
-      document.getElementById('mapHint').textContent = 'Dein Tipp wurde gespeichert. Warte auf die Auflösung.';
-    })
-    .subscribe();
+async function hostStartGame() {
+  realtimeGame = await getOrCreateGame();
+  subscribeToRoom();
+  await realtimeClient.from('games').update({ status: 'guessing', round_index: 0 }).eq('id', realtimeGame.id);
+}
+
+async function hostEndRound() {
+  if (realtimeGame) await realtimeClient.from('games').update({ status: 'results' }).eq('id', realtimeGame.id);
+}
+
+async function hostNextRound() {
+  if (!realtimeGame || realtimeGame.round_index >= rounds.length - 1) return;
+  await realtimeClient.from('games').update({ status: 'guessing', round_index: realtimeGame.round_index + 1 }).eq('id', realtimeGame.id);
 }
 
 async function saveRealtimeGuess() {
@@ -53,15 +71,13 @@ async function saveRealtimeGuess() {
   const month = Number(document.getElementById('guessMonth').value);
   const year = Number(document.getElementById('guessYear').value);
   const points = Math.max(0, 1000 - Math.round(Math.abs(year - solution.year) * 80 + Math.abs(month - solution.month) * 25));
-  const result = await realtimeClient.from('guesses').upsert({
-    game_id: realtimeGame.id, player_id: realtimePlayer.id, round_index: roundIndex,
-    month, year, latitude: chosenPoint.lat, longitude: chosenPoint.lng, points
-  }, {onConflict:'game_id,player_id,round_index'});
-  if (result.error) console.warn('Tipp konnte nicht gespeichert werden.', result.error.message);
-  if (realtimeIsHost) {
-    await realtimeClient.from('games').update({status:'results'}).eq('id', realtimeGame.id);
-  }
+  const result = await realtimeClient.from('guesses').upsert({ game_id: realtimeGame.id, player_id: realtimePlayer.id, round_index: roundIndex, month, year, latitude: chosenPoint.lat, longitude: chosenPoint.lng, points }, { onConflict: 'game_id,player_id,round_index' });
+  if (result.error) document.getElementById('mapHint').textContent = 'Tipp konnte nicht gespeichert werden.';
+  else { document.getElementById('submitGuess').disabled = true; document.getElementById('mapHint').textContent = 'Tipp gespeichert. Warte auf die Auflösung.'; }
 }
 
-document.getElementById('joinForm').addEventListener('submit', () => { joinRealtimeRoom(); });
-document.getElementById('submitGuess').addEventListener('click', saveRealtimeGuess);
+window.joinRealtimeRoom = joinRealtimeRoom;
+window.hostStartGame = hostStartGame;
+window.hostEndRound = hostEndRound;
+window.hostNextRound = hostNextRound;
+window.saveRealtimeGuess = saveRealtimeGuess;
