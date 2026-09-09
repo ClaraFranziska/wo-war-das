@@ -121,9 +121,11 @@ async function hostResetGame() {
   const game = realtimeGame || await getOrCreateGame();
   const guesses = await realtimeClient.from('guesses').delete().eq('game_id', game.id);
   const players = await realtimeClient.from('players').delete().eq('game_id', game.id);
+  const remainingPlayers = await realtimeClient.from('players').select('id', { count: 'exact', head: true }).eq('game_id', game.id);
   const reset = await realtimeClient.from('games').update({ status: 'lobby', round_index: 0, started_at: null }).eq('id', game.id);
-  if (guesses.error || players.error || reset.error) {
+  if (guesses.error || players.error || reset.error || remainingPlayers.error || (remainingPlayers.count || 0) > 0) {
     console.warn('Spiel konnte nicht vollständig zurückgesetzt werden.', guesses.error || players.error || reset.error);
+    window.alert('Die alten Gäste konnten nicht gelöscht werden. Bitte zuerst das aktualisierte supabase-schema.sql in Supabase ausführen.');
     return;
   }
   window.location.reload();
