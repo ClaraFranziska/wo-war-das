@@ -42,10 +42,8 @@ function subscribeToRoom() {
       if (realtimeIsHost) updateHostProgress();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `game_id=eq.${realtimeGame.id}` }, () => {
-      if (realtimeIsHost) {
-        updateHostProgress();
-        updateLobbyPlayers();
-      }
+      updateLobbyPlayers();
+      if (realtimeIsHost) updateHostProgress();
     })
     .subscribe();
   if (realtimeIsHost) updateHostProgress();
@@ -69,6 +67,7 @@ async function joinRealtimeRoom() {
     realtimePlayer = player.data;
     document.getElementById('roomLabel').textContent = `Warteraum · ${roomCode}`;
     subscribeToRoom();
+    updateLobbyPlayers();
     if (realtimeGame.status === 'guessing') window.showGuessRound(realtimeGame.round_index, realtimeGame.started_at); else window.showWaitingRoom();
   } catch (error) {
     document.getElementById('roomLabel').textContent = 'Verbindungsfehler';
@@ -102,6 +101,18 @@ async function updateHostProgress() {
     document.getElementById('guessProgress').textContent = `${guesses.count || 0}/${players.count || 0}`;
   }
 }
+
+  async function updateLobbyPlayers() {
+    if (!realtimeGame) return;
+    const players = await realtimeClient.from('players').select('team').eq('game_id', realtimeGame.id);
+    if (players.error) return;
+    const brideCount = players.data.filter(player => player.team === 'braut').length;
+    const groomCount = players.data.filter(player => player.team === 'braeutigam').length;
+    if (document.getElementById('lobbyPlayerCount')) document.getElementById('lobbyPlayerCount').textContent = players.data.length;
+    if (document.getElementById('lobbyTeamCount')) document.getElementById('lobbyTeamCount').textContent = `${brideCount} Team Braut · ${groomCount} Team Bräutigam`;
+    if (document.getElementById('playerLobbyCount')) document.getElementById('playerLobbyCount').textContent = `${players.data.length} angemeldet`;
+    if (document.getElementById('playerTeamCount')) document.getElementById('playerTeamCount').textContent = `${brideCount} Team Braut · ${groomCount} Team Bräutigam`;
+  }
 
 async function hostNextRound() {
   if (!realtimeGame || realtimeGame.round_index >= rounds.length - 1) return;

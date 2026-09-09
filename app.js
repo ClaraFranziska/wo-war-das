@@ -68,6 +68,7 @@ function showWaitingRoom() {
   $('gameScreen').classList.remove('hidden');
   $('guessView').classList.add('hidden');
   $('resultsView').classList.add('hidden');
+  $('teamLobbyStatus').classList.remove('hidden');
   $('gameTitle').textContent = 'Warte auf den Host';
   $('timer').textContent = '—';
 }
@@ -79,6 +80,7 @@ function showGuessRound(index, startedAt) {
   $('gameScreen').classList.remove('hidden');
   $('guessView').classList.remove('hidden');
   $('resultsView').classList.add('hidden');
+  $('teamLobbyStatus').classList.add('hidden');
   if (isHost) {
     $('hostRoundControls').classList.remove('hidden');
     $('hostRoundLabel').textContent = index < 0 ? 'Übungsrunde' : `Runde ${roundIndex + 1} von ${rounds.length}`;
