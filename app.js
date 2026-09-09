@@ -76,6 +76,7 @@ function showWaitingRoom() {
 
 function showGuessRound(index, startedAt) {
   roundIndex = index;
+  window.currentRoundIndex = index;
   const currentRound = index < 0 ? practiceRound : rounds[index];
   $('joinScreen').classList.add('hidden');
   $('gameScreen').classList.remove('hidden');

@@ -85,7 +85,10 @@ async function hostStartGame() {
 async function hostEndRound() {
   if (realtimeGame && realtimeGame.status === 'guessing') {
     const result = await realtimeClient.from('games').update({ status: 'results' }).eq('id', realtimeGame.id);
-    if (!result.error) window.showResults(await loadRoundGuesses(realtimeGame.round_index), await loadAllGuesses());
+    if (!result.error) {
+      realtimeGame = { ...realtimeGame, status: 'results' };
+      window.showResults(await loadRoundGuesses(realtimeGame.round_index), await loadAllGuesses());
+    }
   }
 }
 
@@ -113,15 +116,18 @@ async function updateHostProgress(expectedRound = realtimeGame?.round_index) {
 
 async function hostNextRound() {
   if (!realtimeGame) return;
-  if (realtimeGame.round_index >= rounds.length - 1) {
+  const currentRound = Math.max(realtimeGame.round_index, window.currentRoundIndex ?? -1);
+  if (currentRound >= rounds.length - 1) {
     const result = await realtimeClient.from('games').update({ status: 'finished' }).eq('id', realtimeGame.id);
     if (!result.error) {
       realtimeGame = { ...realtimeGame, status: 'finished' };
       window.showFinalResults(await loadAllGuesses());
+    } else {
+      window.alert('Der Endstand konnte nicht synchronisiert werden. Bitte den Beamer neu laden und erneut klicken.');
     }
     return;
   }
-  const nextRound = realtimeGame.round_index + 1;
+  const nextRound = currentRound + 1;
   const startedAt = new Date().toISOString();
   const result = await realtimeClient.from('games').update({ status: 'guessing', round_index: nextRound, started_at: startedAt }).eq('id', realtimeGame.id);
   if (!result.error) {
