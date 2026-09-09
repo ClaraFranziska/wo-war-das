@@ -39,9 +39,13 @@ function subscribeToRoom() {
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'guesses', filter: `game_id=eq.${realtimeGame.id}` }, () => {
       if (!realtimeIsHost) document.getElementById('mapHint').textContent = 'Tipp gespeichert. Warte auf die Auflösung.';
-      if (realtimeIsHost) hostMaybeEndRound();
+      if (realtimeIsHost) updateHostProgress();
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `game_id=eq.${realtimeGame.id}` }, () => {
+      if (realtimeIsHost) updateHostProgress();
     })
     .subscribe();
+  if (realtimeIsHost) updateHostProgress();
 }
 
 async function joinRealtimeRoom() {
@@ -66,14 +70,16 @@ async function hostStartGame() {
 }
 
 async function hostEndRound() {
-  if (realtimeGame) await realtimeClient.from('games').update({ status: 'results' }).eq('id', realtimeGame.id);
+  if (realtimeGame && realtimeGame.status === 'guessing') await realtimeClient.from('games').update({ status: 'results' }).eq('id', realtimeGame.id);
 }
 
-async function hostMaybeEndRound() {
+async function updateHostProgress() {
   if (!realtimeGame || realtimeGame.status !== 'guessing') return;
   const players = await realtimeClient.from('players').select('id', { count: 'exact', head: true }).eq('game_id', realtimeGame.id);
   const guesses = await realtimeClient.from('guesses').select('id', { count: 'exact', head: true }).eq('game_id', realtimeGame.id).eq('round_index', realtimeGame.round_index);
-  if (!players.error && !guesses.error && players.count > 0 && guesses.count >= players.count) await hostEndRound();
+  if (!players.error && !guesses.error) {
+    document.getElementById('guessProgress').textContent = `${guesses.count || 0}/${players.count || 0}`;
+  }
 }
 
 async function hostNextRound() {

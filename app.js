@@ -15,7 +15,7 @@ let resultMap;
 let marker;
 let chosenPoint = null;
 let timerId;
-let seconds = 60;
+let seconds = ROUND_SECONDS;
 const $ = id => document.getElementById(id);
 
 document.body.classList.toggle('player-mode', !isHost);
@@ -48,9 +48,11 @@ function startTimer(startedAt) {
   clearInterval(timerId);
   seconds = Math.max(0, ROUND_SECONDS - Math.floor((Date.now() - new Date(startedAt || Date.now()).getTime()) / 1000));
   $('timer').textContent = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  if (isHost) $('hostTimer').textContent = $('timer').textContent;
   timerId = setInterval(() => {
     seconds -= 1;
     $('timer').textContent = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+    if (isHost) $('hostTimer').textContent = $('timer').textContent;
     if (seconds <= 0) {
       clearInterval(timerId);
       $('submitGuess').disabled = true;
@@ -75,6 +77,11 @@ function showGuessRound(index, startedAt) {
   $('gameScreen').classList.remove('hidden');
   $('guessView').classList.remove('hidden');
   $('resultsView').classList.add('hidden');
+  if (isHost) {
+    $('hostRoundControls').classList.remove('hidden');
+    $('hostRoundLabel').textContent = `Runde ${roundIndex + 1} von ${rounds.length}`;
+    $('endRound').disabled = false;
+  }
   $('gameTitle').textContent = 'Wo und wann ist dieses Foto entstanden?';
   $('phaseLabel').textContent = `Runde ${roundIndex + 1} von ${rounds.length}`;
   $('roundNumber').textContent = roundIndex + 1;
@@ -94,6 +101,7 @@ function showGuessRound(index, startedAt) {
 
 function showResults(guesses = [], allGuesses = guesses) {
   clearInterval(timerId);
+  if (isHost) $('hostRoundControls').classList.add('hidden');
   $('guessView').classList.add('hidden');
   $('resultsView').classList.remove('hidden');
   $('gameTitle').textContent = 'Die Tipps sind da';
@@ -127,6 +135,7 @@ if (isHost) {
   $('hostPanel').classList.remove('hidden');
   new QRCode($('hostQr'), { text: `${window.location.origin}${window.location.pathname}?room=HOCHZEIT`, width: 196, height: 196, colorDark: '#172523', colorLight: '#ffffff' });
   $('startGame').addEventListener('click', () => window.hostStartGame && window.hostStartGame());
+  $('endRound').addEventListener('click', () => window.hostEndRound && window.hostEndRound());
   $('newGame').classList.remove('hidden');
   $('newGame').addEventListener('click', () => window.hostResetGame && window.hostResetGame());
 } else {
