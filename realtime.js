@@ -41,11 +41,24 @@ function subscribeToRoom() {
       if (!realtimeIsHost) document.getElementById('mapHint').textContent = 'Tipp gespeichert. Warte auf die Auflösung.';
       if (realtimeIsHost) updateHostProgress();
     })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `game_id=eq.${realtimeGame.id}` }, () => {
-      if (realtimeIsHost) updateHostProgress();
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `game_id=eq.${realtimeGame.id}` }, () => {
+      if (realtimeIsHost) {
+        updateHostProgress();
+        updateLobbyPlayers();
+      }
     })
     .subscribe();
   if (realtimeIsHost) updateHostProgress();
+}
+
+async function updateLobbyPlayers() {
+  if (!realtimeGame || !realtimeIsHost) return;
+  const players = await realtimeClient.from('players').select('team').eq('game_id', realtimeGame.id);
+  if (players.error) return;
+  const brideCount = players.data.filter(player => player.team === 'braut').length;
+  const groomCount = players.data.filter(player => player.team === 'braeutigam').length;
+  document.getElementById('lobbyPlayerCount').textContent = players.data.length;
+  document.getElementById('lobbyTeamCount').textContent = `${brideCount} Team Braut · ${groomCount} Team Bräutigam`;
 }
 
 async function joinRealtimeRoom() {
@@ -65,12 +78,20 @@ async function joinRealtimeRoom() {
 
 async function hostStartGame() {
   realtimeGame = await getOrCreateGame();
-  subscribeToRoom();
-  await realtimeClient.from('games').update({ status: 'guessing', round_index: 0, started_at: new Date().toISOString() }).eq('id', realtimeGame.id);
+  if (!realtimeChannel) subscribeToRoom();
+  const startedAt = new Date().toISOString();
+  const result = await realtimeClient.from('games').update({ status: 'guessing', round_index: -1, started_at: startedAt }).eq('id', realtimeGame.id);
+  if (!result.error) {
+    realtimeGame = { ...realtimeGame, status: 'guessing', round_index: -1, started_at: startedAt };
+    window.showGuessRound(-1, startedAt);
+  }
 }
 
 async function hostEndRound() {
-  if (realtimeGame && realtimeGame.status === 'guessing') await realtimeClient.from('games').update({ status: 'results' }).eq('id', realtimeGame.id);
+  if (realtimeGame && realtimeGame.status === 'guessing') {
+    const result = await realtimeClient.from('games').update({ status: 'results' }).eq('id', realtimeGame.id);
+    if (!result.error) window.showResults(await loadRoundGuesses(realtimeGame.round_index), await loadAllGuesses());
+  }
 }
 
 async function updateHostProgress() {
@@ -84,7 +105,13 @@ async function updateHostProgress() {
 
 async function hostNextRound() {
   if (!realtimeGame || realtimeGame.round_index >= rounds.length - 1) return;
-  await realtimeClient.from('games').update({ status: 'guessing', round_index: realtimeGame.round_index + 1, started_at: new Date().toISOString() }).eq('id', realtimeGame.id);
+  const nextRound = realtimeGame.round_index + 1;
+  const startedAt = new Date().toISOString();
+  const result = await realtimeClient.from('games').update({ status: 'guessing', round_index: nextRound, started_at: startedAt }).eq('id', realtimeGame.id);
+  if (!result.error) {
+    realtimeGame = { ...realtimeGame, status: 'guessing', round_index: nextRound, started_at: startedAt };
+    window.showGuessRound(nextRound, startedAt);
+  }
 }
 
 async function hostResetGame() {
@@ -121,7 +148,7 @@ function getDistancePenalty(distanceKm) {
 
 async function saveRealtimeGuess() {
   if (!realtimeGame || !realtimePlayer || !chosenPoint) return;
-  const solution = rounds[roundIndex].solution;
+  const solution = roundIndex < 0 ? practiceRound.solution : rounds[roundIndex].solution;
   const month = Number(document.getElementById('guessMonth').value);
   const year = Number(document.getElementById('guessYear').value);
   const timePenalty = Math.abs(year - solution.year) * 150 + Math.abs(month - solution.month) * 30;
@@ -139,3 +166,11 @@ window.hostEndRound = hostEndRound;
 window.hostNextRound = hostNextRound;
 window.hostResetGame = hostResetGame;
 window.saveRealtimeGuess = saveRealtimeGuess;
+
+if (realtimeIsHost) {
+  getOrCreateGame().then(game => {
+    realtimeGame = game;
+    subscribeToRoom();
+    updateLobbyPlayers();
+  }).catch(error => console.warn('Host-Raum konnte nicht geladen werden.', error.message));
+}
