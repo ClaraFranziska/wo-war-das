@@ -121,9 +121,11 @@ function renderResults(guesses, allGuesses) {
   $('scoreRows').innerHTML = guesses.map(guess => `<div class="score-row"><span>${guess.name}</span><span>${guess.team === 'braut' ? 'Braut' : 'Bräutigam'}</span><strong>${guess.points}</strong></div>`).join('') || '<p class="map-hint">Noch keine Tipps abgegeben.</p>';
   const bride = allGuesses.filter(guess => guess.team === 'braut');
   const groom = allGuesses.filter(guess => guess.team === 'braeutigam');
-  $('brideScore').textContent = Math.round(bride.reduce((sum, guess) => sum + guess.points, 0) / (bride.length || 1)).toLocaleString('de-DE');
-  $('groomScore').textContent = Math.round(groom.reduce((sum, guess) => sum + guess.points, 0) / (groom.length || 1)).toLocaleString('de-DE');
-  $('leaderboardTitle').textContent = bride.reduce((sum, guess) => sum + guess.points, 0) / (bride.length || 1) === groom.reduce((sum, guess) => sum + guess.points, 0) / (groom.length || 1) ? 'Gleichstand' : (Number($('brideScore').textContent.replace('.', '')) > Number($('groomScore').textContent.replace('.', '')) ? 'Team Braut liegt vorn' : 'Team Bräutigam liegt vorn');
+  const brideTotal = bride.reduce((sum, guess) => sum + guess.points, 0);
+  const groomTotal = groom.reduce((sum, guess) => sum + guess.points, 0);
+  $('brideScore').textContent = brideTotal.toLocaleString('de-DE');
+  $('groomScore').textContent = groomTotal.toLocaleString('de-DE');
+  $('leaderboardTitle').textContent = brideTotal === groomTotal ? 'Gleichstand' : (brideTotal > groomTotal ? 'Team Braut liegt vorn' : 'Team Bräutigam liegt vorn');
 }
 
 window.showResults = showResults;

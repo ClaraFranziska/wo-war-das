@@ -88,11 +88,25 @@ async function hostNextRound() {
 }
 
 async function hostResetGame() {
-  if (!realtimeGame || !window.confirm('Neues Spiel starten und alle bisherigen Tipps löschen?')) return;
-  await realtimeClient.from('guesses').delete().eq('game_id', realtimeGame.id);
-  await realtimeClient.from('players').delete().eq('game_id', realtimeGame.id);
-  await realtimeClient.from('games').update({ status: 'lobby', round_index: 0, started_at: null }).eq('id', realtimeGame.id);
+  if (!window.confirm('Neues Spiel starten und alle bisherigen Gäste und Tipps löschen?')) return;
+  const game = realtimeGame || await getOrCreateGame();
+  const guesses = await realtimeClient.from('guesses').delete().eq('game_id', game.id);
+  const players = await realtimeClient.from('players').delete().eq('game_id', game.id);
+  const reset = await realtimeClient.from('games').update({ status: 'lobby', round_index: 0, started_at: null }).eq('id', game.id);
+  if (guesses.error || players.error || reset.error) {
+    console.warn('Spiel konnte nicht vollständig zurückgesetzt werden.', guesses.error || players.error || reset.error);
+    return;
+  }
   window.location.reload();
+}
+
+function haversineDistanceKm(latitudeA, longitudeA, latitudeB, longitudeB) {
+  const earthRadiusKm = 6371;
+  const toRadians = degrees => degrees * Math.PI / 180;
+  const latitudeDelta = toRadians(latitudeB - latitudeA);
+  const longitudeDelta = toRadians(longitudeB - longitudeA);
+  const value = Math.sin(latitudeDelta / 2) ** 2 + Math.cos(toRadians(latitudeA)) * Math.cos(toRadians(latitudeB)) * Math.sin(longitudeDelta / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
 }
 
 async function saveRealtimeGuess() {
@@ -100,7 +114,9 @@ async function saveRealtimeGuess() {
   const solution = rounds[roundIndex].solution;
   const month = Number(document.getElementById('guessMonth').value);
   const year = Number(document.getElementById('guessYear').value);
-  const points = Math.max(0, 1000 - Math.round(Math.abs(year - solution.year) * 80 + Math.abs(month - solution.month) * 25));
+  const timePenalty = Math.abs(year - solution.year) * 60 + Math.abs(month - solution.month) * 20;
+  const distancePenalty = Math.min(500, Math.round(haversineDistanceKm(chosenPoint.lat, chosenPoint.lng, solution.lat, solution.lng) / 5));
+  const points = Math.max(0, 1000 - timePenalty - distancePenalty);
   const result = await realtimeClient.from('guesses').upsert({ game_id: realtimeGame.id, player_id: realtimePlayer.id, round_index: roundIndex, month, year, latitude: chosenPoint.lat, longitude: chosenPoint.lng, points }, { onConflict: 'game_id,player_id,round_index' });
   if (result.error) document.getElementById('mapHint').textContent = 'Tipp konnte nicht gespeichert werden.';
   else { document.getElementById('submitGuess').disabled = true; document.getElementById('mapHint').textContent = 'Tipp gespeichert. Warte auf die Auflösung.'; }
