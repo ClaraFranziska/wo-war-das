@@ -39,6 +39,7 @@ function subscribeToRoom() {
         if (realtimeIsHost) updateHostProgress(realtimeGame.round_index);
       }
       if (realtimeGame.status === 'results') window.showResults(await loadRoundGuesses(realtimeGame.round_index), await loadAllGuesses());
+      if (realtimeGame.status === 'finished') window.showFinalResults(await loadAllGuesses());
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'guesses', filter: `game_id=eq.${realtimeGame.id}` }, () => {
       if (!realtimeIsHost) document.getElementById('mapHint').textContent = 'Tipp gespeichert. Warte auf die Auflösung.';
@@ -111,7 +112,15 @@ async function updateHostProgress(expectedRound = realtimeGame?.round_index) {
   }
 
 async function hostNextRound() {
-  if (!realtimeGame || realtimeGame.round_index >= rounds.length - 1) return;
+  if (!realtimeGame) return;
+  if (realtimeGame.round_index >= rounds.length - 1) {
+    const result = await realtimeClient.from('games').update({ status: 'finished' }).eq('id', realtimeGame.id);
+    if (!result.error) {
+      realtimeGame = { ...realtimeGame, status: 'finished' };
+      window.showFinalResults(await loadAllGuesses());
+    }
+    return;
+  }
   const nextRound = realtimeGame.round_index + 1;
   const startedAt = new Date().toISOString();
   const result = await realtimeClient.from('games').update({ status: 'guessing', round_index: nextRound, started_at: startedAt }).eq('id', realtimeGame.id);

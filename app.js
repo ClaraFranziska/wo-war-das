@@ -68,6 +68,7 @@ function showWaitingRoom() {
   $('gameScreen').classList.remove('hidden');
   $('guessView').classList.add('hidden');
   $('resultsView').classList.add('hidden');
+  $('finalView').classList.add('hidden');
   $('teamLobbyStatus').classList.remove('hidden');
   $('gameTitle').textContent = 'Warte auf den Host';
   $('timer').textContent = '—';
@@ -80,6 +81,7 @@ function showGuessRound(index, startedAt) {
   $('gameScreen').classList.remove('hidden');
   $('guessView').classList.remove('hidden');
   $('resultsView').classList.add('hidden');
+  $('finalView').classList.add('hidden');
   $('teamLobbyStatus').classList.add('hidden');
   if (isHost) {
     $('hostRoundControls').classList.remove('hidden');
@@ -109,9 +111,33 @@ function showResults(guesses = [], allGuesses = guesses) {
   if (isHost) $('hostRoundControls').classList.add('hidden');
   $('guessView').classList.add('hidden');
   $('resultsView').classList.remove('hidden');
+  $('finalView').classList.add('hidden');
   $('gameTitle').textContent = 'Die Tipps sind da';
   $('timer').textContent = 'AUFLÖSUNG';
   renderResults(guesses, allGuesses);
+  $('nextRound').textContent = roundIndex === rounds.length - 1 ? 'Endstand anzeigen →' : 'Nächste Runde →';
+}
+
+function showFinalResults(allGuesses = []) {
+  clearInterval(timerId);
+  $('guessView').classList.add('hidden');
+  $('resultsView').classList.add('hidden');
+  $('finalView').classList.remove('hidden');
+  const scoredGuesses = allGuesses.filter(guess => guess.round_index >= 0);
+  const brideScore = scoredGuesses.filter(guess => guess.team === 'braut').reduce((sum, guess) => sum + guess.points, 0);
+  const groomScore = scoredGuesses.filter(guess => guess.team === 'braeutigam').reduce((sum, guess) => sum + guess.points, 0);
+  const playerTotals = {};
+  scoredGuesses.forEach(guess => {
+    const player = playerTotals[guess.player_id] || { name: guess.name, team: guess.team, points: 0 };
+    player.points += guess.points;
+    playerTotals[guess.player_id] = player;
+  });
+  const topPlayer = Object.values(playerTotals).sort((first, second) => second.points - first.points)[0];
+  $('finalBrideScore').textContent = brideScore.toLocaleString('de-DE');
+  $('finalGroomScore').textContent = groomScore.toLocaleString('de-DE');
+  $('topPlayerName').textContent = topPlayer?.name || 'Noch offen';
+  $('topPlayerScore').textContent = `${(topPlayer?.points || 0).toLocaleString('de-DE')} Punkte`;
+  $('topPlayerTeam').textContent = topPlayer ? (topPlayer.team === 'braut' ? 'Team Braut' : 'Team Bräutigam') : '-';
 }
 
 function renderResults(guesses, allGuesses) {
@@ -136,6 +162,7 @@ function renderResults(guesses, allGuesses) {
 }
 
 window.showResults = showResults;
+window.showFinalResults = showFinalResults;
 window.showGuessRound = showGuessRound;
 window.showWaitingRoom = showWaitingRoom;
 
@@ -147,6 +174,7 @@ if (isHost) {
   $('endRound').addEventListener('click', () => window.hostEndRound && window.hostEndRound());
   $('newGame').classList.remove('hidden');
   $('newGame').addEventListener('click', () => window.hostResetGame && window.hostResetGame());
+  $('finalNewGame').addEventListener('click', () => window.hostResetGame && window.hostResetGame());
 } else {
   $('joinForm').addEventListener('submit', event => { event.preventDefault(); window.joinRealtimeRoom && window.joinRealtimeRoom(); });
 }
