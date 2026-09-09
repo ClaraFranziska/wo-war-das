@@ -49,16 +49,6 @@ function subscribeToRoom() {
   if (realtimeIsHost) updateHostProgress();
 }
 
-async function updateLobbyPlayers() {
-  if (!realtimeGame || !realtimeIsHost) return;
-  const players = await realtimeClient.from('players').select('team').eq('game_id', realtimeGame.id);
-  if (players.error) return;
-  const brideCount = players.data.filter(player => player.team === 'braut').length;
-  const groomCount = players.data.filter(player => player.team === 'braeutigam').length;
-  document.getElementById('lobbyPlayerCount').textContent = players.data.length;
-  document.getElementById('lobbyTeamCount').textContent = `${brideCount} Team Braut · ${groomCount} Team Bräutigam`;
-}
-
 async function joinRealtimeRoom() {
   try {
     realtimeGame = await getOrCreateGame();
@@ -68,6 +58,7 @@ async function joinRealtimeRoom() {
     document.getElementById('roomLabel').textContent = `Warteraum · ${roomCode}`;
     subscribeToRoom();
     updateLobbyPlayers();
+    window.setInterval(updateLobbyPlayers, 2000);
     if (realtimeGame.status === 'guessing') window.showGuessRound(realtimeGame.round_index, realtimeGame.started_at); else window.showWaitingRoom();
   } catch (error) {
     document.getElementById('roomLabel').textContent = 'Verbindungsfehler';
@@ -183,5 +174,6 @@ if (realtimeIsHost) {
     realtimeGame = game;
     subscribeToRoom();
     updateLobbyPlayers();
+    window.setInterval(updateLobbyPlayers, 2000);
   }).catch(error => console.warn('Host-Raum konnte nicht geladen werden.', error.message));
 }
