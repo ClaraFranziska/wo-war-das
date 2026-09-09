@@ -6,6 +6,7 @@ const rounds = [
   { solution: { month: 7, year: 2026, lat: 52.5147, lng: 13.2395, place: 'Olympiastadion Berlin' }, photo: `${photoBase}e47d3fe2-3add-4a13-9565-724239dd4b26.JPG` },
   { solution: { month: 9, year: 2024, lat: 54.53244, lng: 11.07387, place: '54.53244° N, 11.07387° O' }, photo: `${photoBase}IMG_3574.JPG` }
 ];
+const practiceRound = { solution: { month: 11, year: 1963, lat: 32.7798, lng: -96.8088, place: 'Dealey Plaza, Dallas' }, photo: `${photoBase}uebungsrunde.jpg` };
 const months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const ROUND_SECONDS = 120;
 const isHost = new URLSearchParams(window.location.search).has('host');
@@ -26,7 +27,7 @@ $('phaseLabel').textContent = `Runde 1 von ${rounds.length}`;
 function fillDates() {
   if ($('guessMonth').options.length) return;
   months.forEach((month, index) => $('guessMonth').add(new Option(month, index + 1)));
-  for (let year = 2017; year <= 2026; year++) $('guessYear').add(new Option(year, year));
+  for (let year = 1900; year <= 2026; year++) $('guessYear').add(new Option(year, year));
   $('guessMonth').value = 7;
   $('guessYear').value = 2024;
 }
@@ -73,19 +74,20 @@ function showWaitingRoom() {
 
 function showGuessRound(index, startedAt) {
   roundIndex = index;
+  const currentRound = index < 0 ? practiceRound : rounds[index];
   $('joinScreen').classList.add('hidden');
   $('gameScreen').classList.remove('hidden');
   $('guessView').classList.remove('hidden');
   $('resultsView').classList.add('hidden');
   if (isHost) {
     $('hostRoundControls').classList.remove('hidden');
-    $('hostRoundLabel').textContent = `Runde ${roundIndex + 1} von ${rounds.length}`;
+    $('hostRoundLabel').textContent = index < 0 ? 'Übungsrunde' : `Runde ${roundIndex + 1} von ${rounds.length}`;
     $('endRound').disabled = false;
   }
   $('gameTitle').textContent = 'Wo und wann ist dieses Foto entstanden?';
-  $('phaseLabel').textContent = `Runde ${roundIndex + 1} von ${rounds.length}`;
+  $('phaseLabel').textContent = index < 0 ? 'Übungsrunde · ohne Wertung' : `Runde ${roundIndex + 1} von ${rounds.length}`;
   $('roundNumber').textContent = roundIndex + 1;
-  $('roundPhoto').src = rounds[roundIndex].photo;
+  $('roundPhoto').src = currentRound.photo;
   chosenPoint = null;
   if (marker) marker.remove();
   marker = null;
@@ -110,7 +112,8 @@ function showResults(guesses = [], allGuesses = guesses) {
 }
 
 function renderResults(guesses, allGuesses) {
-  const solution = rounds[roundIndex].solution;
+  const solution = roundIndex < 0 ? practiceRound.solution : rounds[roundIndex].solution;
+  $('resultMessage').textContent = roundIndex < 0 ? 'Übungsrunde · diese Punkte zählen nicht für die Teamwertung.' : 'Stark geschätzt! Hier seht ihr alle Tipps.';
   $('solutionTitle').textContent = `${months[solution.month - 1]} ${solution.year} · ${solution.place}`;
   if (resultMap) resultMap.remove();
   resultMap = L.map('resultMap', { zoomControl: false }).setView([solution.lat, solution.lng], 6);
@@ -119,8 +122,9 @@ function renderResults(guesses, allGuesses) {
   guesses.forEach(guess => L.circleMarker([guess.latitude, guess.longitude], { radius: 7, color: guess.team === 'braut' ? '#47715c' : '#de725f', fillOpacity: .8 }).addTo(resultMap));
   $('timeline').innerHTML = guesses.map(guess => `<div class="timeline-point ${guess.month === solution.month && guess.year === solution.year ? 'correct' : ''}"><small>${guess.month}/${guess.year}</small><i></i><small>${guess.name}</small></div>`).join('');
   $('scoreRows').innerHTML = guesses.map(guess => `<div class="score-row"><span>${guess.name}</span><span>${guess.team === 'braut' ? 'Braut' : 'Bräutigam'}</span><strong>${guess.points}</strong></div>`).join('') || '<p class="map-hint">Noch keine Tipps abgegeben.</p>';
-  const bride = allGuesses.filter(guess => guess.team === 'braut');
-  const groom = allGuesses.filter(guess => guess.team === 'braeutigam');
+  const scoredGuesses = allGuesses.filter(guess => guess.round_index >= 0);
+  const bride = scoredGuesses.filter(guess => guess.team === 'braut');
+  const groom = scoredGuesses.filter(guess => guess.team === 'braeutigam');
   const brideTotal = bride.reduce((sum, guess) => sum + guess.points, 0);
   const groomTotal = groom.reduce((sum, guess) => sum + guess.points, 0);
   $('brideScore').textContent = brideTotal.toLocaleString('de-DE');
