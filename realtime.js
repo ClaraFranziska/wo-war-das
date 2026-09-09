@@ -36,17 +36,17 @@ function subscribeToRoom() {
       realtimeGame = payload.new;
       if (realtimeGame.status === 'guessing') {
         window.showGuessRound(realtimeGame.round_index, realtimeGame.started_at);
-        if (realtimeIsHost) updateHostProgress();
+        if (realtimeIsHost) updateHostProgress(realtimeGame.round_index);
       }
       if (realtimeGame.status === 'results') window.showResults(await loadRoundGuesses(realtimeGame.round_index), await loadAllGuesses());
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'guesses', filter: `game_id=eq.${realtimeGame.id}` }, () => {
       if (!realtimeIsHost) document.getElementById('mapHint').textContent = 'Tipp gespeichert. Warte auf die Auflösung.';
-      if (realtimeIsHost) updateHostProgress();
+      if (realtimeIsHost) updateHostProgress(realtimeGame.round_index);
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `game_id=eq.${realtimeGame.id}` }, () => {
       updateLobbyPlayers();
-      if (realtimeIsHost) updateHostProgress();
+      if (realtimeIsHost) updateHostProgress(realtimeGame.round_index);
     })
     .subscribe();
   if (realtimeIsHost) updateHostProgress();
@@ -77,7 +77,7 @@ async function hostStartGame() {
   if (!result.error) {
     realtimeGame = { ...realtimeGame, status: 'guessing', round_index: -1, started_at: startedAt };
     window.showGuessRound(-1, startedAt);
-    updateHostProgress();
+    updateHostProgress(-1);
   }
 }
 
@@ -88,10 +88,11 @@ async function hostEndRound() {
   }
 }
 
-async function updateHostProgress() {
+async function updateHostProgress(expectedRound = realtimeGame?.round_index) {
   if (!realtimeGame || realtimeGame.status !== 'guessing') return;
   const players = await realtimeClient.from('players').select('id', { count: 'exact', head: true }).eq('game_id', realtimeGame.id);
-  const guesses = await realtimeClient.from('guesses').select('id', { count: 'exact', head: true }).eq('game_id', realtimeGame.id).eq('round_index', realtimeGame.round_index);
+  const guesses = await realtimeClient.from('guesses').select('id', { count: 'exact', head: true }).eq('game_id', realtimeGame.id).eq('round_index', expectedRound);
+  if (realtimeGame.round_index !== expectedRound) return;
   if (!players.error && !guesses.error) {
     document.getElementById('guessProgress').textContent = `${guesses.count || 0}/${players.count || 0}`;
   }
@@ -117,7 +118,7 @@ async function hostNextRound() {
   if (!result.error) {
     realtimeGame = { ...realtimeGame, status: 'guessing', round_index: nextRound, started_at: startedAt };
     window.showGuessRound(nextRound, startedAt);
-    updateHostProgress();
+    updateHostProgress(nextRound);
   }
 }
 
