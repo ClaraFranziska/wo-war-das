@@ -34,7 +34,10 @@ function subscribeToRoom() {
   realtimeChannel = realtimeClient.channel(`game-${realtimeGame.id}`)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${realtimeGame.id}` }, async payload => {
       realtimeGame = payload.new;
-      if (realtimeGame.status === 'guessing') window.showGuessRound(realtimeGame.round_index, realtimeGame.started_at);
+      if (realtimeGame.status === 'guessing') {
+        window.showGuessRound(realtimeGame.round_index, realtimeGame.started_at);
+        if (realtimeIsHost) updateHostProgress();
+      }
       if (realtimeGame.status === 'results') window.showResults(await loadRoundGuesses(realtimeGame.round_index), await loadAllGuesses());
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'guesses', filter: `game_id=eq.${realtimeGame.id}` }, () => {
@@ -74,6 +77,7 @@ async function hostStartGame() {
   if (!result.error) {
     realtimeGame = { ...realtimeGame, status: 'guessing', round_index: -1, started_at: startedAt };
     window.showGuessRound(-1, startedAt);
+    updateHostProgress();
   }
 }
 
@@ -113,6 +117,7 @@ async function hostNextRound() {
   if (!result.error) {
     realtimeGame = { ...realtimeGame, status: 'guessing', round_index: nextRound, started_at: startedAt };
     window.showGuessRound(nextRound, startedAt);
+    updateHostProgress();
   }
 }
 
@@ -158,7 +163,9 @@ async function saveRealtimeGuess() {
   const timePenalty = Math.abs(year - solution.year) * 150 + Math.abs(month - solution.month) * 30;
   const distanceKm = haversineDistanceKm(chosenPoint.lat, chosenPoint.lng, solution.lat, solution.lng);
   const distancePenalty = getDistancePenalty(distanceKm);
-  const points = Math.max(0, 1000 - timePenalty - distancePenalty);
+  const timePoints = Math.max(0, 500 - timePenalty);
+  const locationPoints = Math.max(0, 500 - distancePenalty);
+  const points = timePoints + locationPoints;
   const result = await realtimeClient.from('guesses').upsert({ game_id: realtimeGame.id, player_id: realtimePlayer.id, round_index: roundIndex, month, year, latitude: chosenPoint.lat, longitude: chosenPoint.lng, points }, { onConflict: 'game_id,player_id,round_index' });
   if (result.error) document.getElementById('mapHint').textContent = 'Tipp konnte nicht gespeichert werden.';
   else { document.getElementById('submitGuess').disabled = true; document.getElementById('mapHint').textContent = 'Tipp gespeichert. Warte auf die Auflösung.'; }

@@ -85,6 +85,7 @@ function showGuessRound(index, startedAt) {
     $('hostRoundControls').classList.remove('hidden');
     $('hostRoundLabel').textContent = index < 0 ? 'Übungsrunde' : `Runde ${roundIndex + 1} von ${rounds.length}`;
     $('endRound').disabled = false;
+    $('guessProgress').textContent = '0/0';
   }
   $('gameTitle').textContent = 'Wo und wann ist dieses Foto entstanden?';
   $('phaseLabel').textContent = index < 0 ? 'Übungsrunde · ohne Wertung' : `Runde ${roundIndex + 1} von ${rounds.length}`;
