@@ -109,16 +109,25 @@ function haversineDistanceKm(latitudeA, longitudeA, latitudeB, longitudeB) {
   return earthRadiusKm * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
 }
 
+function getDistancePenalty(distanceKm) {
+  if (distanceKm <= 1) return 0;
+  if (distanceKm <= 10) return 100;
+  if (distanceKm <= 50) return 200;
+  if (distanceKm <= 150) return 300;
+  if (distanceKm <= 300) return 400;
+  if (distanceKm < 500) return 450;
+  return null;
+}
+
 async function saveRealtimeGuess() {
   if (!realtimeGame || !realtimePlayer || !chosenPoint) return;
   const solution = rounds[roundIndex].solution;
   const month = Number(document.getElementById('guessMonth').value);
   const year = Number(document.getElementById('guessYear').value);
-  const timePenalty = Math.abs(year - solution.year) * 60 + Math.abs(month - solution.month) * 20;
-  const distancePenalty = Math.min(500, Math.round(haversineDistanceKm(chosenPoint.lat, chosenPoint.lng, solution.lat, solution.lng) / 5));
-  const timePoints = Math.max(0, 500 - timePenalty);
-  const locationPoints = Math.max(0, 500 - distancePenalty);
-  const points = timePoints + locationPoints;
+  const timePenalty = Math.abs(year - solution.year) * 150 + Math.abs(month - solution.month) * 30;
+  const distanceKm = haversineDistanceKm(chosenPoint.lat, chosenPoint.lng, solution.lat, solution.lng);
+  const distancePenalty = getDistancePenalty(distanceKm);
+  const points = distancePenalty === null ? 0 : Math.max(0, 1000 - timePenalty - distancePenalty);
   const result = await realtimeClient.from('guesses').upsert({ game_id: realtimeGame.id, player_id: realtimePlayer.id, round_index: roundIndex, month, year, latitude: chosenPoint.lat, longitude: chosenPoint.lng, points }, { onConflict: 'game_id,player_id,round_index' });
   if (result.error) document.getElementById('mapHint').textContent = 'Tipp konnte nicht gespeichert werden.';
   else { document.getElementById('submitGuess').disabled = true; document.getElementById('mapHint').textContent = 'Tipp gespeichert. Warte auf die Auflösung.'; }
